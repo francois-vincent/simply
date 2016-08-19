@@ -1,2 +1,2 @@
 # simply
-An expermental framework to tat manages buildable - runnable platforms for tests or remote exection
+An experimental framework that configures, builds, runs and deploys platforms for tests or remote exection
