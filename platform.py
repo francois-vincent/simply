@@ -1,61 +1,54 @@
 # encoding: utf-8
 
-import os.path
+from importlib import import_module
 
-from .utils import run_sequence, extract_column
-
-
-def platform_method(func):
-    setattr(Platform, func.__name__, single_multiple(func))
-
-
-def single_multiple(meth):
-    def wrapper(self, *args, **kwargs):
-        host = kwargs.pop('host', None)
-        if host:
-            ret = meth(self, host, *args, **kwargs)
-            return self if ret is None else ret
-        else:
-            ret = {k: meth(self, k, *args, **kwargs) for k in self.hosts}
-            return self if all(x is None for x in ret.itervalues()) else ret
-    return wrapper
+import backends
+from utils import (run_sequence, extract_column, read_configuration, collapse_none,
+                    collapse_and, multiple, set_methods_from_conf)
 
 
 class Backend(object):
     """
     Base class for all backends
     """
+    @staticmethod
+    def factory(platform, conf):
+        # backend = import_module('backends.' + conf['backend'])
+        backend = getattr(backend, conf['bacend'])
+        return backend.get_backend_class(conf, platform)
 
 
 class Platform(object):
     """
     A platform is a set of hosts managed through a backend.
     hosts = dict(hostname=address) where address can be an ip, a container name, etc...
-    There are 3 types of backends:
-    - buildable platforms like test backends (docker or VM),
-    - runnable (thus stoppable) backends (docker or VM),
-    - non buildable non runnable backends.
     """
 
-    def __init__(self, name, backend=None):
-        self.name = name
-        self.backend = backend
-        if isinstance(backend, basestring):
-            self.read_configuration(backend)
-        # self.user = user
-        # self.effective_user = user or 'root'
+    @classmethod
+    def factory(cls, conf):
+        if isinstance(conf, basestring):
+            conf = read_configuration(conf)
+        set_methods_from_conf(cls, conf)
+        platforms_conf = conf['platforms']
+        return [cls(platform, platforms_conf[platform]) for platform in conf['sequence']]
 
-    def read_configuration(self, conf_file):
-        if not os.path.isfile(conf_file):
-            raise RuntimeError("File %s not found" % conf_file)
-        self.conf = {}
-        execfile(conf_file, {}, self.conf)
+    def __init__(self, name, conf):
+        self.name = name
+        self.__dict__.update(conf)
+        self.user = getattr(self, 'user', None)
+        self.effective_user = getattr(self, 'user', 'root')
+        self.backend = Backend.factory(self, conf)
 
     def __getattr__(self, item):
         if hasattr(self.backend, item):
             return getattr(self.backend, item)
         raise AttributeError("{} {} can't find {}, missing or bad backend".
                            format(self.__class__.__name__, self.name, item))
+
+    def setup(self):
+        run_sequence(self, *self.pre)
+        yield self
+        run_sequence(self, *self.post)
 
     def pre_setup(self, *args):
         return run_sequence(self, *args)
@@ -76,19 +69,19 @@ class Platform(object):
                 return k
         raise LookupError("{} {} not found".format(self.host_name, host))
 
-    # Utility methods
-    # You can add
+    # High Level utility methods
+    # You can add methods via platform description file
 
-    @single_multiple
+    @collapse_none
     def get_processes(self, host, filter=None):
         """ Get the list of running processes, with optional filter
         """
-        processes = extract_column(self.run_command('ps -A', host, user='root'), -1, 1)
+        processes = extract_column(self.run_command('ps -A', host=host, user='root'), -1, 1)
         if filter is None:
             return processes
         return [proc for proc in processes if filter in proc]
 
-    @single_multiple
+    @collapse_none
     def create_user(self, host, user, groups=(), home=None, shell=None):
         """ Create a user with optional groups, home and shell
         """
@@ -96,12 +89,16 @@ class Platform(object):
             format(user,
                    ' -d {}'.format(home) if home else '',
                    ' -s {}'.format(shell) if shell else '')
-        self.run_command(cmd, host)
-        existing_groups = extract_column(self.run_command('cat /etc/group', host), 0, sep=':')
+        self.run_command(cmd, hot=host)
+        existing_groups = extract_column(self.run_command('cat /etc/group', host=host), 0, sep=':')
         for group in groups:
             if group not in existing_groups:
-                self.run_command('addgroup {}'.format(group), host)
-            self.run_command('usermod -a -G {} {}'.format(group, user), host)
+                self.run_command('addgroup {}'.format(group), hot=host)
+            self.run_command('usermod -a -G {} {}'.format(group, user), host=host)
+
+    @collapse_and
+    def path_exists(self, path, host):
+        return self.test_comand('test -e {}'.format(path), host=host)
 
 
 class AbstractPlatform(object):
@@ -113,17 +110,24 @@ class AbstractPlatform(object):
     def __init__(self):
         raise NotImplementedError("{} is not instanciable".format(self.__class__.__name__))
 
-    def run_platform(self):
-        """ Runs the platform if it is runnable
+    def start(self):
+        """ Runs the platform
         """
         return self
 
-    def run_command(self, command, host=None, input_data=None, raises=False):
+    @multiple
+    def run_command(self, command, host, input_data=None, raises=False):
         """ Runs a command and returns stdout (or dict)
         :param command: the command to run in bash
         :param host: a host name
         :param input_data: data to stream to stdin
-        :param raises: if True, raises is any one of the commands fails
+        :param raises: if True, raises if the command fails on any host
         :return: stdout if host is specified or a dict {host: stdout, ...}
         """
         return 'stdout'
+
+    @collapse_and
+    def test_command(self, command, host):
+        """ Runs a command and return True if it succeeds on all hosts, False if it fails on any host
+        """
+        return True

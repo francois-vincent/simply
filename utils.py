@@ -3,6 +3,7 @@
 from contextlib import contextmanager
 import cStringIO
 import os.path
+import re
 from subprocess import Popen, PIPE, call
 import sys
 import threading
@@ -85,6 +86,56 @@ def run_sequence(self, *args):
     return self
 
 
+def set_method(cls, func, name=None, deco=None):
+    setattr(cls, func.__name__ if name is None else name, func if deco is None else deco(func))
+
+
+def multiple(meth):
+    def wrapper(self, *args, **kwargs):
+        host = kwargs.pop('host', None)
+        if host:
+            return meth(self, host, *args, **kwargs)
+        else:
+            return {k: meth(self, k, *args, **kwargs) for k in self.hosts}
+    return wrapper
+
+
+def collapse_none(meth):
+    def wrapper(self, *args, **kwargs):
+        host = kwargs.pop('host', None)
+        if host:
+            ret = meth(self, host, *args, **kwargs)
+            return self if ret is None else ret
+        else:
+            ret = {k: meth(self, k, *args, **kwargs) for k in self.hosts}
+            return self if all(x is None for x in ret.itervalues()) else ret
+    return wrapper
+
+
+def collapse_and(meth):
+    def wrapper(self, *args, **kwargs):
+        host = kwargs.pop('host', None)
+        if host:
+            return meth(self, host, *args, **kwargs)
+        else:
+            return all(meth(self, k, *args, **kwargs) for k in self.hosts)
+    return wrapper
+
+
+def set_methods_from_conf(cls, conf):
+    import utils
+    regex = re.compile(r".*?\[deco:(\w+)\]")
+    for k, v in conf.items():
+        print("'{}' '{}'".format(k, v.__doc__))
+        if hasattr(v, '__call__'):
+            deco = multiple
+            if getattr(v, '__doc__', None):
+                deco_spec = regex.findall(v.__doc__)
+                if deco_spec:
+                    deco = getattr(utils, deco_spec[0])
+            set_method(cls, v, k, deco)
+
+
 # ======================= OS RELATED UTILITIES =======================
 
 # this is explicitly borrowed from fabric
@@ -162,7 +213,8 @@ def command(cmd, raises=False):
     ret = call(cmd, shell=True)
     if ret and raises:
         raise RuntimeError("Error while executing<{}>".format(cmd))
-    return ret
+    return ret    # assert Test().toto(12) == {'h1': 12, 'h2': 12}
+
 
 
 def command_input(cmd, datain, raises=False):
@@ -173,3 +225,11 @@ def command_input(cmd, datain, raises=False):
     if p.returncode and raises:
         raise RuntimeError("Error while executing<{}>".format(cmd))
     return p.returncode
+
+
+def read_configuration(conf_file):
+    if not os.path.isfile(conf_file):
+        raise RuntimeError("File %s not found" % conf_file)
+    conf = {}
+    execfile(conf_file, {}, conf)
+    return conf

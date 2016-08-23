@@ -1,2 +1,2 @@
 # simply
-An experimental framework that configures, builds, runs and deploys platforms for tests or remote exection
+An framework that builds, deploys, configures and runs platforms for continuous integration (tests and deployment) or management (monitoring, remote execution, data up/download)

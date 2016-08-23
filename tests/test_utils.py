@@ -3,7 +3,8 @@
 import pytest
 
 from .. import ROOTDIR
-from ..utils import cd, extract_column, filter_column, Command, command, command_input, run_sequence
+from ..utils import (cd, extract_column, filter_column, Command, command, command_input, run_sequence, collapse_none,
+                    collapse_and, set_method, set_methods_from_conf)
 
 
 def test_extract_column():
@@ -104,3 +105,53 @@ def test_sequencer():
     run_sequence(toto, 'a', ('b', 1), ('c', (1, 2)), ('d', (1, 2)),
                  ('e', (1, 2)), ('e', (1, ), {'k': 3}), ('f', (1, ), {'x': 2}))
     toto.x = ['a', ('b', 1), ('c', 1, 2), ('d', (1, 2)), ('e', 1, 2), ('e', 1, 3), ('f', (1,), {'x': 2})]
+
+
+def test_decorators():
+    class Test(object):
+        hosts = {'h1': 'container1', 'h2': 'container2'}
+        @collapse_none
+        def get_hosts(self, host, a, b=None):
+            return self.hosts[host]
+        @collapse_none
+        def get_none(self, host, *args, **kwargs):
+            pass
+        @collapse_and
+        def get_true(self, host):
+            return True
+
+    t = Test()
+    assert t.get_hosts('', host='h1') == Test.hosts['h1']
+    assert t.get_hosts('') == Test.hosts
+    assert t.get_none() is t
+    assert t.get_none(host='h1') is t
+    assert t.get_true()
+    assert t.get_true(host='h1')
+
+
+def test_set_method():
+    class Test(object):
+        pass
+
+    def toto(self, param):
+        return param
+
+    t = Test()
+    with pytest.raises(AttributeError):
+        t.toto(12)
+    set_method(Test, toto)
+    assert hasattr(Test, 'toto')
+    assert hasattr(t, 'toto')
+    assert t.toto(12) == 12
+
+
+def test_set_methods_from_conf():
+    class Test(object):
+        hosts = {'h1': 'container1', 'h2': 'container2'}
+
+    def toto(self, host, param):
+        return param
+
+    conf = dict(toto=toto)
+    set_methods_from_conf(Test, conf)
+    assert Test().toto(12) == {'h1': 12, 'h2': 12}
