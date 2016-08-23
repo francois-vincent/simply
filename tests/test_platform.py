@@ -2,26 +2,18 @@
 
 import pytest
 
-from ..platform import Platform, Backend, collapse_none
+from ..platform import Platform, Backend
 
 
-def test_manager():
-    class FailingBackend(Backend):
-        def build(self):
-            raise IndexError('fake')
-
-    class GoodBackend(Backend):
-        def build(self):
-            return self
-
-    with pytest.raises(AttributeError):
-        Platform('').build()
-
-    with pytest.raises(AttributeError):
-        Platform('').pre_setup('build')
-
-    with pytest.raises(IndexError):
-        Platform('', backend=FailingBackend()).build()
-
-    assert Platform('', backend=GoodBackend()).build()
-
+def test_platform_factory():
+    hosts = {'h1': 'host1', 'h2': 'host2'}
+    conf = dict(platforms={'test': {'backend': 'docker',
+                                    'hosts': hosts,
+                                    'images': hosts,
+                                    }})
+    p = Platform.factory(conf)
+    assert len(p) == 1
+    p = p[0]
+    assert p.name == 'test'
+    assert p.effective_user == 'root'
+    assert p.hosts == hosts

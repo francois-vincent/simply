@@ -213,8 +213,7 @@ def command(cmd, raises=False):
     ret = call(cmd, shell=True)
     if ret and raises:
         raise RuntimeError("Error while executing<{}>".format(cmd))
-    return ret    # assert Test().toto(12) == {'h1': 12, 'h2': 12}
-
+    return ret
 
 
 def command_input(cmd, datain, raises=False):

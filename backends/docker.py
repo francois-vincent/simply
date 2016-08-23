@@ -1,7 +1,7 @@
 # encoding: utf-8
 
-from platform import Backend
-from utils import command
+from ..platform import Backend
+from ..utils import command
 
 
 def get_backend_class():
@@ -13,8 +13,8 @@ class DockerBackend(Backend):
     host_name = 'container'
 
     def __init__(self, conf, platform=None):
-        self.images = conf.images
-        self.hosts = conf.hosts
+        self.images = conf['images']
+        self.hosts = conf['hosts']
         self.platform = platform
 
     def get_hosts(self, spec=None):

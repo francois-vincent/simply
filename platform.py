@@ -13,9 +13,9 @@ class Backend(object):
     """
     @staticmethod
     def factory(platform, conf):
-        # backend = import_module('backends.' + conf['backend'])
-        backend = getattr(backend, conf['bacend'])
-        return backend.get_backend_class(conf, platform)
+        # backend = __import__('simply.backends.' + conf['backend'])
+        backend = import_module('.' + conf['backend'], 'simply.backends')
+        return backend.get_backend_class()(conf, platform)
 
 
 class Platform(object):
@@ -30,13 +30,14 @@ class Platform(object):
             conf = read_configuration(conf)
         set_methods_from_conf(cls, conf)
         platforms_conf = conf['platforms']
-        return [cls(platform, platforms_conf[platform]) for platform in conf['sequence']]
+        sequence = conf['sequence'] if len(platforms_conf) > 1 else platforms_conf
+        return [cls(platform, platforms_conf[platform]) for platform in sequence]
 
     def __init__(self, name, conf):
         self.name = name
         self.__dict__.update(conf)
         self.user = getattr(self, 'user', None)
-        self.effective_user = getattr(self, 'user', 'root')
+        self.effective_user = self.user or 'root'
         self.backend = Backend.factory(self, conf)
 
     def __getattr__(self, item):
