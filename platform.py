@@ -2,7 +2,6 @@
 
 from importlib import import_module
 
-import backends
 from utils import (run_sequence, extract_column, read_configuration, collapse_none,
                     collapse_and, multiple, set_methods_from_conf)
 
@@ -13,7 +12,6 @@ class Backend(object):
     """
     @staticmethod
     def factory(platform, conf):
-        # backend = __import__('simply.backends.' + conf['backend'])
         backend = import_module('.' + conf['backend'], 'simply.backends')
         return backend.get_backend_class()(conf, platform)
 
