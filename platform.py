@@ -2,8 +2,8 @@
 
 from importlib import import_module
 
-from utils import (run_sequence, extract_column, read_configuration, collapse_none,
-                    collapse_and, multiple, set_methods_from_conf)
+from utils import (run_sequence, extract_column, read_configuration, collapse_self,
+                    collapse_op, set_methods_from_conf)
 
 
 class Backend(object):
@@ -20,6 +20,7 @@ class Platform(object):
     """
     A platform is a set of hosts managed through a backend.
     hosts = dict(hostname=address) where address can be an ip, a container name, etc...
+    It is also a sequence of construction steps
     """
 
     @classmethod
@@ -71,7 +72,7 @@ class Platform(object):
     # High Level utility methods
     # You can add methods via platform description file
 
-    @collapse_none
+    @collapse_op('dict')
     def get_processes(self, host, filter=None):
         """ Get the list of running processes, with optional filter
         """
@@ -80,7 +81,7 @@ class Platform(object):
             return processes
         return [proc for proc in processes if filter in proc]
 
-    @collapse_none
+    @collapse_self
     def create_user(self, host, user, groups=(), home=None, shell=None):
         """ Create a user with optional groups, home and shell
         """
@@ -95,7 +96,7 @@ class Platform(object):
                 self.run_command('addgroup {}'.format(group), hot=host)
             self.run_command('usermod -a -G {} {}'.format(group, user), host=host)
 
-    @collapse_and
+    @collapse_op('all')
     def path_exists(self, path, host):
         return self.test_comand('test -e {}'.format(path), host=host)
 
@@ -114,7 +115,7 @@ class AbstractPlatform(object):
         """
         return self
 
-    @multiple
+    @collapse_op('dict')
     def run_command(self, command, host, input_data=None, raises=False):
         """ Runs a command and returns stdout (or dict)
         :param command: the command to run in bash
@@ -125,7 +126,7 @@ class AbstractPlatform(object):
         """
         return 'stdout'
 
-    @collapse_and
+    @collapse_op('all')
     def test_command(self, command, host):
         """ Runs a command and return True if it succeeds on all hosts, False if it fails on any host
         """

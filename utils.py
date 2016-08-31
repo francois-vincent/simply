@@ -90,35 +90,54 @@ def set_method(cls, func, name=None, deco=None):
     setattr(cls, func.__name__ if name is None else name, func if deco is None else deco(func))
 
 
-def multiple(meth):
-    def wrapper(self, *args, **kwargs):
-        host = kwargs.pop('host', None)
-        if host:
-            return meth(self, host, *args, **kwargs)
-        else:
-            return {k: meth(self, k, *args, **kwargs) for k in self.hosts}
+def collapse_op(op):
+    """ Decorator to automatically execute a platform method on all its hosts
+        or a specific host.
+        The decorated method must have its first argument a host specifier (string).
+        Usage: if the wrapper method is called with host='host' parameter, the wrapped
+        method will be called once with this host.
+        If the wrapper method is called with no host= parameter, the wrapped method will
+        be called once per host of the platform. The wrapped method will then return a
+        value depending of the op parameter.
+        :param op:
+        - dict:  a dictionary {host: value, ...} of the return values for each host.
+        - all: a boolean, execution on multiple hosts stops as soon as the wrapped
+          method returns False (good to check path or process on all hosts).
+        - extend or append: a concatenated list of return values, use 'extend' if
+          the wrapped method returns a sequence, otherwise use 'append'.
+    """
+    concat_values = ('dict', 'and', 'extend', 'append')
+    def wrapper(meth):
+        def wrapped(self, *args, **kwargs):
+            host = kwargs.pop('host', None)
+            if host:
+                return meth(self, host, *args, **kwargs)
+            elif op == 'dict':
+                return {host: meth(self, host, *args, **kwargs) for host in self.hosts}
+            elif op == 'all':
+                return all(meth(self, host, *args, **kwargs) for host in self.hosts)
+            elif op in ('extend', 'append'):
+                ret = []
+                for host in self.hosts:
+                    getattr(ret, op)(meth(self, host, *args, **kwargs))
+                return ret
+            else:
+                raise ValueError("Parameter concat must be one of {}".format(concat_values))
+        return wrapped
     return wrapper
 
 
-def collapse_none(meth):
+def collapse_self(meth):
+    """ Like multiple, except that it always returns self
+    """
     def wrapper(self, *args, **kwargs):
         host = kwargs.pop('host', None)
         if host:
-            ret = meth(self, host, *args, **kwargs)
-            return self if ret is None else ret
+            meth(self, host, *args, **kwargs)
         else:
-            ret = {k: meth(self, k, *args, **kwargs) for k in self.hosts}
-            return self if all(x is None for x in ret.itervalues()) else ret
-    return wrapper
-
-
-def collapse_and(meth):
-    def wrapper(self, *args, **kwargs):
-        host = kwargs.pop('host', None)
-        if host:
-            return meth(self, host, *args, **kwargs)
-        else:
-            return all(meth(self, k, *args, **kwargs) for k in self.hosts)
+            for host in self.hosts:
+                meth(self, host, *args, **kwargs)
+        return self
     return wrapper
 
 
@@ -126,9 +145,8 @@ def set_methods_from_conf(cls, conf):
     import utils
     regex = re.compile(r".*?\[deco:(\w+)\]")
     for k, v in conf.items():
-        print("'{}' '{}'".format(k, v.__doc__))
         if hasattr(v, '__call__'):
-            deco = multiple
+            deco = collapse_op('dict')
             if getattr(v, '__doc__', None):
                 deco_spec = regex.findall(v.__doc__)
                 if deco_spec:
@@ -230,5 +248,6 @@ def read_configuration(conf_file):
     if not os.path.isfile(conf_file):
         raise RuntimeError("File %s not found" % conf_file)
     conf = {}
-    execfile(conf_file, {}, conf)
+    with open(conf_file, "rb") as f:
+        exec(compile(f.read(), conf_file, 'exec'), {}, conf)
     return conf

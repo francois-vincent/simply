@@ -3,8 +3,8 @@
 import pytest
 
 from .. import ROOTDIR
-from ..utils import (cd, extract_column, filter_column, Command, command, command_input, run_sequence, collapse_none,
-                    collapse_and, set_method, set_methods_from_conf)
+from ..utils import (cd, extract_column, filter_column, Command, command, command_input, run_sequence,
+                     collapse_self, collapse_op, set_method, set_methods_from_conf)
 
 
 def test_extract_column():
@@ -110,23 +110,28 @@ def test_sequencer():
 def test_decorators():
     class Test(object):
         hosts = {'h1': 'container1', 'h2': 'container2'}
-        @collapse_none
+        @collapse_op('dict')
         def get_hosts(self, host, a, b=None):
             return self.hosts[host]
-        @collapse_none
-        def get_none(self, host, *args, **kwargs):
+        @collapse_self
+        def get_self(self, host, *args, **kwargs):
             pass
-        @collapse_and
+        @collapse_op('all')
         def get_true(self, host):
             return True
+        @collapse_op('append')
+        def get_list(self, host):
+            return self.hosts[host]
 
     t = Test()
     assert t.get_hosts('', host='h1') == Test.hosts['h1']
     assert t.get_hosts('') == Test.hosts
-    assert t.get_none() is t
-    assert t.get_none(host='h1') is t
+    assert t.get_self() is t
+    assert t.get_self(host='h1') is t
     assert t.get_true()
     assert t.get_true(host='h1')
+    assert set(t.get_list()) == set(Test.hosts.values())
+    assert t.get_list(host='h1') == Test.hosts['h1']
 
 
 def test_set_method():

@@ -10,23 +10,16 @@ sequence = ['testimage', 'deployed', 'test_platform']
 platforms = {
         'test_platform': {
             'backend': 'docker',
-            'images': {'h1': 'testimage-deployed-host1', 'h2': 'testimage-deployed-host2'},
-            'recipes': {'h1': 'depends:deployed', 'h2': 'depends:deployed'},
+            'images': {'h1': 'testimage-deployed-host', 'h2': 'testimage-deployed-host'},
             'hosts': {'h1': 'test-deployed-host1', 'h2': 'test-deployed-host2'},
             'parameters': {'h1': '', 'h2': ''},
         },
         'deployed': {
             'backend': 'docker',
-            'images': {'h1': 'testimage-deployed-host1', 'h2': 'testimage-deployed-host2'},
-            'recipes': {'h1': 'depends:testimage', 'h2': 'depends:testimage'},
-            'pre': [],
-            'post': ['stop', 'commit'],
+            'images': {'h1': 'testimage-deployed-host'},
+            'pre': [('build', 'testimage')],
+            'post': ['stop', 'commit', 'rm'],
         },
-        'testimage': {
-            'backend': 'docker',
-            'images': {'h1': 'testimage'},
-            'recipes': {'h1': 'build:testimage'},
-        }
     }
 
 
