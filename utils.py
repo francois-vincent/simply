@@ -91,8 +91,8 @@ def set_method(cls, func, name=None, deco=None):
 
 
 def collapse_op(op):
-    """ Decorator to automatically execute a platform method on all its hosts
-        or a specific host.
+    """ Decorator to automatically execute a method on a specific host or all platform hosts,
+        collecting return values in a dict or a list, or just testing them.
         The decorated method must have its first argument a host specifier (string).
         Usage: if the wrapper method is called with host='host' parameter, the wrapped
         method will be called once with this host.
@@ -101,12 +101,14 @@ def collapse_op(op):
         value depending of the op parameter.
         :param op:
         - dict:  a dictionary {host: value, ...} of the return values for each host.
-        - all: a boolean, execution on multiple hosts stops as soon as the wrapped
-          method returns False (good to check path or process on all hosts).
         - extend or append: a concatenated list of return values, use 'extend' if
           the wrapped method returns a sequence, otherwise use 'append'.
+        - and: a boolean, execution on multiple hosts stops as soon as the wrapped
+          method returns False (good to check path or process exists on all hosts).
+        - any: a boolean, execution on multiple hosts stops as soon as the wrapped
+          method returns True (good to check missing path or process on all hosts).
     """
-    concat_values = ('dict', 'and', 'extend', 'append')
+    op_values = ('dict', 'extend', 'append', 'and', 'any')
     def wrapper(meth):
         def wrapped(self, *args, **kwargs):
             host = kwargs.pop('host', None)
@@ -114,21 +116,23 @@ def collapse_op(op):
                 return meth(self, host, *args, **kwargs)
             elif op == 'dict':
                 return {host: meth(self, host, *args, **kwargs) for host in self.hosts}
-            elif op == 'all':
-                return all(meth(self, host, *args, **kwargs) for host in self.hosts)
             elif op in ('extend', 'append'):
                 ret = []
                 for host in self.hosts:
                     getattr(ret, op)(meth(self, host, *args, **kwargs))
                 return ret
+            elif op == 'and':
+                return all(meth(self, host, *args, **kwargs) for host in self.hosts)
+            elif op == 'any':
+                return any(meth(self, host, *args, **kwargs) for host in self.hosts)
             else:
-                raise ValueError("Parameter concat must be one of {}".format(concat_values))
+                raise ValueError("Parameter op must be one of {}".format(op_values))
         return wrapped
     return wrapper
 
 
 def collapse_self(meth):
-    """ Like multiple, except that it always returns self
+    """ Like collapse_op, except that it always returns self
     """
     def wrapper(self, *args, **kwargs):
         host = kwargs.pop('host', None)
