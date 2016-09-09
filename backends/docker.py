@@ -1,36 +1,112 @@
 # encoding: utf-8
 
-from ..platform import Backend
-from ..utils import command
+from .. import utils
+from .docker_cmds import (get_images, get_containers, container_stop, container_delete,
+                          image_delete, image_delete_and_containers, docker_build, docker_run,
+                          docker_exec)
 
 
-def get_backend_class():
-    return DockerBackend
+def get_instance(platform, conf):
+    return DockerBackend(platform, conf)
 
 
-class DockerBackend(Backend):
-    blueprint_name = 'image'
-    host_name = 'container'
+class DockerBackend(object):
+    type = 'docker'
 
-    def __init__(self, conf, platform=None):
-        self.images = conf['images']
-        self.hosts = conf['hosts']
+    def __init__(self, platform, conf):
         self.platform = platform
+        self.user = platform.user
+        self.image = conf.image
+        self.name = self.type + '.' + self.image
+        self.make_container_name(conf)
+        self.parameters = getattr(conf, 'parameters', None)
+        # available methods: pull, path, input
+        self.methods = getattr(conf, 'methods', 'path')
+        self.path = getattr(conf, 'path', None)
 
-    def get_hosts(self, spec=None):
-        if spec == 'ip':
+    def make_container_name(self, conf):
+        self.container = getattr(conf, 'container', None) or 'simply_' + utils.random_id()
+
+    def setup(self, reset=None):
+        """
+        1- ensures images are created, otherwise, creates them
+        2- ensures containers are created and started otherwise creates and/or starts them
+        """
+        self.build_image(reset)
+        self.run_container()
+        return self
+
+    def reset(self, reset='rm_image'):
+        """ Resets a platform
+        :param reset: 'uproot': remove platform images and any dependant container
+                      'rm_image': remove platform images and containers
+                      'rm_container': remove and stop platform containers
+                      'stop': stop platform containers
+        """
+        if not reset:
             return self
-        return self.hosts
+        if reset == 'uproot':
+            self.image_delete(uproot=True)
+            return self
+        if reset in ('stop', 'rm_container', 'rm_image'):
+            self.container_stop()
+        if reset in ('rm_container', 'rm_image'):
+            self.container_delete()
+        if reset == 'rm_image':
+            self.image_delete()
+        return self
 
-    def run_command(self, cmd, host, input_data=None, raises=False):
-        pass
+    def build_image(self, reset=None):
+        self.reset(reset)
+        if self.image not in self.get_real_images():
+            if self.method == 'pull':
+                print(utils.yellow("Pull image {}".format(self.image)))
+            else:
+                print(utils.yellow("Build image {}".format(self.image)))
+                if self.path:
+                    docker_build(self.image, self.image, path=self.path)
+                else:
+                    docker_build(self.image, self.image, input=self.method == 'input')
+        return self
 
-    def test_command(self, cmd, host, shell=None):
-        docker_cmd = 'docker exec -i {} {}'.format(self.hosts[host], '{} "{}"'.format(shell, cmd) if shell else cmd)
-        return not command(docker_cmd)
+    def image_exist(self):
+        return [self.image] == self.get_real_images()
 
-    def standard_setup(self):
-        self.build_images()
-        self.setup_network()
-        self.run_containers('rm_container')
-        return self.connect_network()
+    def run_container(self, reset=None):
+        self.reset(reset)
+        if self.container in self.get_real_containers():
+            return self
+        self.container_delete()
+        docker_run(self.image, self.container, self.container, self.parameters)
+        return self
+
+    def get_real_images(self):
+        return get_images(self.image)
+
+    def get_real_containers(self, all=False):
+        return get_containers(self.container, all=all)
+
+    def image_delete(self, uproot=False):
+        func = image_delete_and_containers if uproot else image_delete
+        for image in self.get_real_images():
+            print(utils.red("Delete image {}".format(image)))
+            func(image)
+        return self
+
+    def container_stop(self):
+        for container in self.get_real_containers():
+            print(utils.yellow("Stop container {}".format(container)))
+            container_stop(container)
+        return self
+
+    def container_delete(self):
+        for container in self.get_real_containers(True):
+            print(utils.yellow("Delete container {}".format(container)))
+            container_delete(container)
+        return self
+
+    def execute(self, cmd, **kwargs):
+        return docker_exec(cmd, self.container, self.user, **kwargs)
+
+
+get_class = DockerBackend

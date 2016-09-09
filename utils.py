@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 import cStringIO
 import os.path
-import re
+import random
 from subprocess import Popen, PIPE, call
 import sys
 import threading
@@ -60,103 +60,8 @@ def filter_column(text, column, start=0, sep=None, **kwargs):
     return values
 
 
-def run_sequence(self, *args):
-    """ run a sequence of methods with optional parameters from an object
-    :param self: an object
-    :param args: a sequence of:
-       - string: call string()
-       - tuple or list of:
-          - (string, object): call string(object)
-          - (string, tuple): call string(*tuple)
-          - (string, tuple, dict): call string(*tuple, **dict)
-    """
-    for i, arg in enumerate(args):
-        if isinstance(arg, basestring):
-            getattr(self, arg)()
-        elif len(arg) is 2:
-            param = arg[1]
-            if isinstance(param, tuple):
-                getattr(self, arg[0])(*param)
-            else:
-                getattr(self, arg[0])(param)
-        elif len(arg) is 3:
-            getattr(self, arg[0])(*(arg[1]), **(arg[2]))
-        else:
-            raise RuntimeError('Bad argument at position {}: {}'.format(i, arg))
-    return self
-
-
-def set_method(cls, func, name=None, deco=None):
-    setattr(cls, func.__name__ if name is None else name, func if deco is None else deco(func))
-
-
-def collapse_op(op):
-    """ Decorator to automatically execute a method on a specific host or all platform hosts,
-        collecting return values in a dict or a list, or just testing them.
-        The decorated method must have its first argument a host specifier (string).
-        Usage: if the wrapper method is called with host='host' parameter, the wrapped
-        method will be called once with this host.
-        If the wrapper method is called with no host= parameter, the wrapped method will
-        be called once per host of the platform. The wrapped method will then return a
-        value depending of the op parameter.
-        :param op:
-        - dict:  a dictionary {host: value, ...} of the return values for each host.
-        - extend or append: a concatenated list of return values, use 'extend' if
-          the wrapped method returns a sequence, otherwise use 'append'.
-        - and: a boolean, execution on multiple hosts stops as soon as the wrapped
-          method returns False (good to check path or process exists on all hosts).
-        - any: a boolean, execution on multiple hosts stops as soon as the wrapped
-          method returns True (good to check missing path or process on all hosts).
-    """
-    op_values = ('dict', 'extend', 'append', 'and', 'any')
-    def wrapper(meth):
-        def wrapped(self, *args, **kwargs):
-            host = kwargs.pop('host', None)
-            if host:
-                return meth(self, host, *args, **kwargs)
-            elif op == 'dict':
-                return {host: meth(self, host, *args, **kwargs) for host in self.hosts}
-            elif op in ('extend', 'append'):
-                ret = []
-                for host in self.hosts:
-                    getattr(ret, op)(meth(self, host, *args, **kwargs))
-                return ret
-            elif op == 'and':
-                return all(meth(self, host, *args, **kwargs) for host in self.hosts)
-            elif op == 'any':
-                return any(meth(self, host, *args, **kwargs) for host in self.hosts)
-            else:
-                raise ValueError("Parameter op must be one of {}".format(op_values))
-        return wrapped
-    return wrapper
-
-
-def collapse_self(meth):
-    """ Like collapse_op, except that it always returns self
-    """
-    def wrapper(self, *args, **kwargs):
-        host = kwargs.pop('host', None)
-        if host:
-            meth(self, host, *args, **kwargs)
-        else:
-            for host in self.hosts:
-                meth(self, host, *args, **kwargs)
-        return self
-    return wrapper
-
-
-def set_methods_from_conf(cls, conf):
-    import utils
-    regex = re.compile(r".*?\[deco:(\w+)\]")
-    for k, v in conf.items():
-        if hasattr(v, '__call__'):
-            deco = collapse_op('dict')
-            if getattr(v, '__doc__', None):
-                deco_spec = regex.findall(v.__doc__)
-                if deco_spec:
-                    deco = getattr(utils, deco_spec[0])
-            set_method(cls, v, k, deco)
-
+def random_id(len=16):
+    return ''.join(random.choice('0123456789abcdefghijklmnopqrstuvwxyz') for _ in xrange(len))
 
 # ======================= OS RELATED UTILITIES =======================
 
@@ -181,10 +86,8 @@ white = _wrap_with('37')
 @contextmanager
 def cd(folder):
     old_folder = os.getcwd()
-    try:
-        yield os.chdir(folder)
-    finally:
-        os.chdir(old_folder)
+    yield os.chdir(folder)
+    os.chdir(old_folder)
 
 
 COMMAND_DEBUG = None
@@ -248,10 +151,58 @@ def command_input(cmd, datain, raises=False):
     return p.returncode
 
 
+class ConfAttrDict(dict):
+    """
+    An configuration attribute dictionary with a context manager that allows to push and pull items,
+    eg for configuration overriding.
+    """
+
+    def __getattr__(self, item):
+        if item in self:
+            return self[item]
+        raise AttributeError("{} attribute not found: {}".format(self.__class__.__name__, item))
+
+    def __add__(self, other):
+        dict.update(self, other)
+        return self
+
+    def __sub__(self, other):
+        for k in other.iterkeys():
+            try:
+                del self[k]
+            except KeyError:
+                pass
+        return self
+
+    def push(self, **kwargs):
+        if not hasattr(self, '__item_stack'):
+            self.__item_stack = []
+            self.__missing_stask = []
+        self.__item_stack.append({k: self[k] for k in kwargs if k in self})
+        self.__missing_stask.append([k for k in kwargs if k not in self])
+        self.update(kwargs)
+        return self
+
+    def pull(self):
+        self.update(self.__item_stack.pop())
+        for k in self.__missing_stask.pop():
+            del self[k]
+        return self
+
+    def __call__(self, **kwargs):
+        return self.push(**kwargs)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.pull()
+
+
 def read_configuration(conf_file):
     if not os.path.isfile(conf_file):
         raise RuntimeError("File %s not found" % conf_file)
-    conf = {}
+    conf = ConfAttrDict()
     with open(conf_file, "rb") as f:
         exec(compile(f.read(), conf_file, 'exec'), {}, conf)
     return conf
