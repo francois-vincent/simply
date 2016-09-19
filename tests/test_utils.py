@@ -3,7 +3,7 @@
 import pytest
 
 from .. import ROOTDIR
-from ..utils import cd, extract_column, filter_column, Command, command, command_input
+from ..utils import cd, extract_column, filter_column, Command, command, command_input, ConfAttrDict
 
 
 def test_extract_column():
@@ -83,3 +83,49 @@ def test_command_input(capsys):
     out, err = capsys.readouterr()
     assert (out, err) == ('', '')
 
+
+def test_atr_dict():
+    cad = ConfAttrDict(a=1, b=2, c=3)
+    assert len(cad) == 3
+    assert cad.a == 1
+    with pytest.raises(AttributeError):
+        cad.d
+
+    with cad(a=10, d=11):
+        assert len(cad) == 4
+        assert cad.a == 10
+        assert cad.d == 11
+    assert len(cad) == 3
+    assert cad.a == 1
+    with pytest.raises(AttributeError):
+        cad.d
+
+    with cad(a=ConfAttrDict.Remove_, d=ConfAttrDict.Remove_):
+        assert len(cad) == 2
+        with pytest.raises(AttributeError):
+            cad.a
+        with pytest.raises(AttributeError):
+            cad.d
+    assert len(cad) == 3
+    assert cad.a == 1
+    with pytest.raises(AttributeError):
+        cad.d
+
+    cad += dict(d=4)
+    assert len(cad) == 4
+    assert cad.d == 4
+    cad -= ('a', 'd')
+    assert len(cad) == 2
+    with pytest.raises(AttributeError):
+        cad.a
+    with pytest.raises(AttributeError):
+        cad.d
+
+    cad2 = cad + dict(a=1)
+    assert len(cad) == 2
+    assert len(cad2) == 3
+
+    cad3 = cad2 - dict(a=1)
+    assert len(cad2) == 3
+    assert len(cad3) == 2
+    assert cad == cad3
