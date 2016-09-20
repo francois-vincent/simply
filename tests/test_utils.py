@@ -135,9 +135,34 @@ def test_atr_dict():
 def test_python_conf():
     conf = """
 titi = 1 + 1
-toto = USER
+toto = TEST_ENVIRON
 """
+    os.environ['TEST_ENVIRON'] = 'python'
     x, y = read_configuration(conf, '.py')
     assert y == 'inline'
     assert x.titi == 2
-    assert x.toto == os.environ['USER']
+    assert x.toto == os.environ['TEST_ENVIRON']
+
+
+def test_json_conf():
+    conf = """
+{
+  "titi": 2,
+  "toto": "json"
+}
+"""
+    x, y = read_configuration(conf, '.json')
+    assert y == 'inline'
+    assert x.titi == 2
+    assert x.toto == 'json'
+
+
+def test_yaml_conf():
+    conf = """
+titi: 2
+toto: yaml
+"""
+    x, y = read_configuration(conf, '.yaml')
+    assert y == 'inline'
+    assert x.titi == 2
+    assert x.toto == 'yaml'

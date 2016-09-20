@@ -2,7 +2,6 @@
 
 from contextlib import contextmanager
 import cStringIO
-import glob
 import os
 import random
 from subprocess import Popen, PIPE, call
@@ -215,19 +214,60 @@ class ConfAttrDict(dict):
         self._pull()
 
 
+def find_file(file, path):
+    """ returns the first file path found, in the specified path(es).
+    :param file: an absolute file path or a file name.
+    :param path: None or string or list, used only if file path is not absolute.
+           if None or empty string, search in current directory.
+           if '...', search recursively in current directory and its parents up to but not including '/'.
+           if string, must be an absolute path to search for file.
+           if list of strings, search in each specified path (can be '.', '..' or '...')
+    :return: the first file path found
+    """
+    def check_path(file, path):
+        if path == '...':
+            path = os.getcwd()
+            while path != '/':
+                f = os.path.join(path, file)
+                if os.path.isfile(f):
+                    return f, True
+                path = os.path.dirname(path)
+            return file, False
+        else:
+            f = os.path.join(path, file)
+            return f, os.path.isfile(f)
+
+    if os.path.isabs(file):
+        return file
+    path = path or os.getcwd()
+    if isinstance(path, basestring):
+        file, is_file = check_path(file, path)
+        if is_file:
+            return file
+        raise RuntimeError("File {} not found".format(file))
+    else:
+        for p in path:
+            f, is_file = check_path(file, p)
+            if is_file:
+                return f
+        raise RuntimeError("File {} not found in {}".format(file, path))
+
+
 def read_configuration(file, path=None):
+    """ read configuration from file or string
+    :param file: a file name or an inline configuration string
+    :param path: None or sting or list of string.
+           if '.py' or '.yaml' or '.json', file is interpreted as an inline configuration string,
+           if string or list of strings, specifies search path(es) for file (current directory if path is None)
+    :return: a tuple (ConfAttrDict, config file path)
+    """
     if path in ('.py', '.yaml', '.json'):
         data = file
         file, ext = 'inline', path
     else:
-        if path:
-            file = os.path.join(path, file)
-        try:
-            file = glob.glob(file)[0]
-        except IndexError:
-            raise RuntimeError("File %s not found" % file)
         _, ext = os.path.splitext(file)
-        with open(file, "r") as f:
+        file = find_file(file, path)
+        with open(file, 'r') as f:
             data = f.read()
     if ext == '.py':
         conf = ConfAttrDict()
@@ -236,8 +276,11 @@ def read_configuration(file, path=None):
         import yaml
         conf = ConfAttrDict(yaml.load(data))
     elif ext == '.json':
-        import simplejson as json
-        conf = ConfAttrDict(json.load(data))
+        try:
+            import simplejson as json
+        except ImportError:
+            import json
+        conf = ConfAttrDict(json.loads(data))
     else:
         raise TypeError("Unknown file format %s" % file)
     return conf, file
