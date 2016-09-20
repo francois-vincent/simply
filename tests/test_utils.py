@@ -1,9 +1,10 @@
 # encoding: utf-8
 
+import os
 import pytest
 
 from .. import ROOTDIR
-from ..utils import cd, extract_column, filter_column, Command, command, command_input, ConfAttrDict
+from ..utils import cd, extract_column, filter_column, Command, command, command_input, ConfAttrDict, read_configuration
 
 
 def test_extract_column():
@@ -129,3 +130,14 @@ def test_atr_dict():
     assert len(cad2) == 3
     assert len(cad3) == 2
     assert cad == cad3
+
+
+def test_python_conf():
+    conf = """
+titi = 1 + 1
+toto = USER
+"""
+    x, y = read_configuration(conf, '.py')
+    assert y == 'inline'
+    assert x.titi == 2
+    assert x.toto == os.environ['USER']

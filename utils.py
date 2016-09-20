@@ -2,7 +2,8 @@
 
 from contextlib import contextmanager
 import cStringIO
-import os.path
+import glob
+import os
 import random
 from subprocess import Popen, PIPE, call
 import sys
@@ -183,7 +184,7 @@ class ConfAttrDict(dict):
     def __sub__(self, other):
         return ConfAttrDict(self).__isub__(other)
 
-    def push(self, **kwargs):
+    def _push(self, **kwargs):
         if not hasattr(self, '__item_stack'):
             self.__item_stack = []
             self.__missing_stack = []
@@ -199,25 +200,44 @@ class ConfAttrDict(dict):
         self.__missing_stack.append([k for k in kkwargs if k not in self])
         return self.update(kkwargs)
 
-    def pull(self):
+    def _pull(self):
         for k in self.__missing_stack.pop():
             del self[k]
         return self.update(self.__item_stack.pop())
 
     def __call__(self, **kwargs):
-        return self.push(**kwargs)
+        return self._push(**kwargs)
 
     def __enter__(self):
         return self
 
     def __exit__(self, *args):
-        self.pull()
+        self._pull()
 
 
-def read_configuration(conf_file):
-    if not os.path.isfile(conf_file):
-        raise RuntimeError("File %s not found" % conf_file)
-    conf = ConfAttrDict()
-    with open(conf_file, "rb") as f:
-        exec(compile(f.read(), conf_file, 'exec'), {}, conf)
-    return conf
+def read_configuration(file, path=None):
+    if path in ('.py', '.yaml', '.json'):
+        data = file
+        file, ext = 'inline', path
+    else:
+        if path:
+            file = os.path.join(path, file)
+        try:
+            file = glob.glob(file)[0]
+        except IndexError:
+            raise RuntimeError("File %s not found" % file)
+        _, ext = os.path.splitext(file)
+        with open(file, "r") as f:
+            data = f.read()
+    if ext == '.py':
+        conf = ConfAttrDict()
+        exec(compile(data, file, 'exec'), dict(os.environ), conf)
+    elif ext in ('.yml', '.yaml'):
+        import yaml
+        conf = ConfAttrDict(yaml.load(data))
+    elif ext == '.json':
+        import simplejson as json
+        conf = ConfAttrDict(json.load(data))
+    else:
+        raise TypeError("Unknown file format %s" % file)
+    return conf, file
