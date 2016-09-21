@@ -66,7 +66,7 @@ class DockerBackend(object):
                 if self.path:
                     docker_build(self.image, self.image, path=self.path)
                 else:
-                    docker_build(self.image, self.image, input=self.method == 'input')
+                    docker_build(self.image, self.image, inline=self.method == 'input')
         return self
 
     def image_exist(self):

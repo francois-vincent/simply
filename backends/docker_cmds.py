@@ -5,6 +5,10 @@ import os
 from .. import ROOTDIR, utils
 
 
+def docker_version():
+    return utils.extract_column(utils.filter_column(utils.Command('docker version').stdout, 0, eq='Version:'), 1)[0]
+
+
 def get_images(filter=None):
     """ Get images names, with optional filter on name.
     :param filter: if string, get images names containing it, if python container, get images in this set.
@@ -40,30 +44,18 @@ def get_containers(filter=None, image=None, all=True):
         return containers
 
 
-def get_networks(filter=None, driver=None):
-    docker_cmd = 'docker network ls'
-    if driver:
-        networks = utils.extract_column(utils.filter_column(utils.Command(docker_cmd).stdout, 2, 1, eq=driver), 1)
-    else:
-        networks = utils.Command(docker_cmd).stdout_column(1, 1)
-    if filter:
-        if isinstance(filter, basestring):
-            return [x for x in networks if filter in x]
-        else:
-            return [x for x in networks if x in filter]
-    return networks
-
-
-def container_stop(*container):
+def container_stop(*container, **kwargs):
+    image = kwargs.get('image')
     ret = True
-    for cont in container:
+    for cont in get_containers(image=image) if image else container:
         ret &= not utils.command('docker stop ' + cont)
     return ret
 
 
-def container_delete(*container):
-    ret = True
-    for cont in container:
+def container_delete(*container, **kwargs):
+    image = kwargs.get('image')
+    ret = container_stop(image=image, *container)
+    for cont in get_containers(image=image, all=True) if image else container:
         ret &= not utils.command('docker rm ' + cont)
     return ret
 
@@ -78,29 +70,26 @@ def image_delete(*image):
 def image_delete_and_containers(image):
     """ WARNING: This will remove an image and all its dependant containers
     """
-    for container in get_containers(image=image):
-        container_stop(container)
-    for container in get_containers(image=image, all=True):
-        container_delete(container)
+    container_stop(image=image)
+    container_delete(image=image)
     return image_delete(image)
 
 
-def docker_build(image, tag, path=None, input=False):
+def docker_build(image, tag=None, inline=False):
     """ Wrapper around docker build command
     see https://docs.docker.com/engine/reference/commandline/build/
-    :param image: the context (path to Dockerfile and other resources), can be an URL
+    :param image: name of the image. Can be an absolute path to a Dockerfile or an URL
     :param tag: target name of the image
-    :param input: if True, path contains dockerfile data
+    :param inline: if True, image contains dockerfile data inline
     :return: True if successfull
     """
-    if input:
+    tag = tag or image
+    if inline:
         cmd = 'docker build -t {} -'.format(tag)
         return not utils.command_input(cmd, image)
     else:
         if os.path.isabs(image):
             path = image
-        elif path:
-            path = path
         else:
             path = os.path.join(ROOTDIR, 'images', image)
         cmd = 'docker build -t {} {}'.format(tag, path)
@@ -108,19 +97,17 @@ def docker_build(image, tag, path=None, input=False):
         return not utils.Command(cmd, show='Build: ').returncode
 
 
-def docker_run(image, container, host=None, parameters=None):
-    cmd = 'docker run -d '
-    cmd += '--name {} '.format(container)
-    cmd += '-h {} '.format(host or container)
+def docker_run(image, container=None, parameters=None, cmd=None):
+    docker_cmd = 'docker run -d'
+    if container:
+        docker_cmd += ' --name {0}  -h {0}'.format(container)
     if parameters:
-        cmd += parameters + ' '
-    cmd += image
-    print(utils.yellow(cmd))
-    return not utils.command(cmd)
-
-
-def docker_start(container):
-    return utils.command('docker start {}'.format(container))
+        docker_cmd += ' ' + parameters
+    docker_cmd += ' ' + image
+    if cmd:
+        docker_cmd += ' ' + cmd
+    print(utils.yellow(docker_cmd))
+    return not utils.command(docker_cmd)
 
 
 def docker_commit(container, image):
@@ -157,20 +144,6 @@ def docker_exec(cmd, container, user=None, raises=False, status_only=False, stdo
     return dock
 
 
-def docker_network(name, cmd='create', raises=True):
-    allowed = ('create', 'remove')
-    if cmd not in allowed:
-        raise RuntimeError("Network command must be in {}, found {}".format(allowed, cmd))
-    ret = utils.command('docker network {} {}'.format(cmd, name))
-    if ret and raises:
-        raise RuntimeError("Could not {} network {}".format(cmd, name))
-
-
-def network_connect(network, container):
-    if utils.command('docker network connect {} {}'.format(network, container)):
-        raise RuntimeError("Could not connect {} to network {}".format(container, network))
-
-
 def path_exists(path, container):
     return docker_exec('test -e {}'.format(path), container, status_only=True)
 
@@ -181,20 +154,20 @@ def get_data(source, container):
 
 def put_file(source, dest, container):
     docker_cmd = 'docker cp {} {}:{}'.format(source, container, dest)
-    utils.command(docker_cmd, raises=True)
+    return not utils.command(docker_cmd, raises=True)
 
 
 def put_data(data, dest, container, append=False):
-    """ Copy data to a file with optional append and user/perms settings.
-    :param data: byte string of data
+    """ Copy data to a file with optional append.
+    :param data: string of data or object with read() method
     :param dest: file path on target container. The directory must exist
     :param container: container name
     :param append: if True, the data is appended to the file, otherwise, the file is created or overwritten
     """
     if append and not path_exists(dest, container):
         docker_exec('touch {}'.format(dest), container)
-    docker_cmd = 'docker exec -i {} /bin/bash -c "cat {} {}"'.format(container, '>>' if append else '>', dest)
-    utils.command_input(docker_cmd, data, raises=True)
+    docker_cmd = 'docker exec -i {} /bin/sh -c "cat {} {}"'.format(container, '>>' if append else '>', dest)
+    return not utils.command_input(docker_cmd, data.read() if hasattr(data, 'read') else data, raises=True)
 
 
 def put_directory(source, dest, container):

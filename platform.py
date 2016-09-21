@@ -6,9 +6,7 @@ import frontends
 
 class Platform(object):
     """
-    A platform is a set of hosts managed through a backend.
-    hosts = dict(hostname=address) where address can be an ip, a container name, etc...
-    It is also a sequence of construction steps
+    A platform is an abstraction of an host with a backend (docker, ...) and a frontend (distribution)
     """
 
     def __init__(self, conf, **kwargs):
@@ -34,10 +32,3 @@ class Platform(object):
 
     def __exit__(self, *args):
         pass
-
-    def name_from_host(self, host):
-        for k, v in self.hosts.iteritems():
-            if v == host:
-                return k
-        raise LookupError("{} {} not found".format(self.host_name, host))
-

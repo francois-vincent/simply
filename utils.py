@@ -137,7 +137,7 @@ def command(cmd, raises=False):
     """
     ret = call(cmd, shell=True)
     if ret and raises:
-        raise RuntimeError("Error while executing<{}>".format(cmd))
+        raise RuntimeError("Error while executing <{}>".format(cmd))
     return ret
 
 
@@ -147,7 +147,7 @@ def command_input(cmd, datain, raises=False):
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
     p.communicate(datain)
     if p.returncode and raises:
-        raise RuntimeError("Error while executing<{}>".format(cmd))
+        raise RuntimeError("Error while executing <{}>".format(cmd))
     return p.returncode
 
 
