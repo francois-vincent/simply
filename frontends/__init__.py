@@ -3,6 +3,9 @@
 from importlib import import_module
 
 
-def factory(platform, conf):
-    frontend = import_module('.' + conf['frontend'], 'simply.frontends')
-    return frontend.get_instance(platform, conf)
+def get_module(conf):
+    return import_module('.' + conf['frontend'], 'simply.frontends')
+
+
+def get_class(conf):
+    return get_module(conf).this_class

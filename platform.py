@@ -1,21 +1,28 @@
 # encoding: utf-8
 
+from .utils import mixin_factory
 import backends
 import frontends
 
 
+def get_class(conf):
+    return mixin_factory('Platform', Platform, backends.get_class(conf), frontends.get_class(conf))
+
+
+def factory(conf, **kwargs):
+    return get_class(conf)(conf, **kwargs)
+
+
 class Platform(object):
     """
-    A platform is an abstraction of an host with a backend (docker, ...) and a frontend (distribution)
+    A platform is an abstraction of a host with a backend (docker, ...) and a frontend (an OS)
     """
 
     def __init__(self, conf, **kwargs):
         self.__dict__.update(conf)
         self.__dict__.update(kwargs)
-        self.user = getattr(self, 'user', None)
-        self.effective_user = self.user or 'root'
-        self.backend = backends.factory(self, conf)
-        self.frontend = frontends.factory(self, conf)
+        self.init_backend(conf)
+        self.init_frontend(conf)
 
     def __getattr__(self, item):
         if hasattr(self.backend, item):
@@ -27,7 +34,8 @@ class Platform(object):
                                   self.backend.name, self.frontend.type))
 
     def __enter__(self):
-        self.setup()
+        self.setup_backend()
+        self.setup_frontend()
         return self
 
     def __exit__(self, *args):

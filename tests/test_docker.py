@@ -4,6 +4,8 @@ import os.path
 
 from .. import ROOTDIR
 from ..backends import docker_cmds as dc
+from ..backends import docker, get_class
+from ..utils import ConfAttrDict
 
 
 def test_version():
@@ -27,7 +29,7 @@ CMD ["/bin/cat"]
 """
     dc.image_delete_and_containers('scratch')
     try:
-        assert dc.docker_build(inline, tag='scratch', inline=True)
+        assert dc.docker_build(inline, tag='scratch')
         assert dc.get_images('scratch') == ['scratch']
     finally:
         dc.image_delete('scratch')
@@ -108,3 +110,63 @@ def test_put_data():
     finally:
         dc.container_delete(image='busybox')
 
+# Test DockerBackend
+
+
+def test_docker_import():
+    conf = ConfAttrDict(
+        backend='docker'
+    )
+    assert get_class(conf) is docker.this_class
+
+
+def test_docker_conf():
+    conf = ConfAttrDict()
+    db = docker.this_class()
+    db.image = 'busybox'
+    assert db.init_backend(conf)
+    assert db.parameters is None
+    assert db.container.startswith(db.image)
+    conf = ConfAttrDict(
+        container='busybox',
+        parameters='-v /bin:/bin'
+    )
+    db = docker.this_class()
+    db.image = 'busybox'
+    assert db.init_backend(conf)
+    assert db.container == conf.container
+    assert db.parameters == conf.parameters
+
+
+def test_docker_pull():
+    conf = ConfAttrDict(
+        image_spec='.pull'
+    )
+    db = docker.this_class()
+    db.image = 'busybox'
+    assert db.init_backend(conf)
+    assert db.build_image('uproot')
+    assert db.image_exist()
+
+
+def test_docker_build():
+    conf = ConfAttrDict()
+    db = docker.this_class()
+    db.image = 'scratch'
+    assert db.init_backend(conf)
+    assert db.build_image('uproot')
+    assert db.image_exist()
+
+
+def test_docker_build_inline():
+    conf = ConfAttrDict(
+        image_spec="""
+FROM scratch
+CMD ["/bin/cat"]
+"""
+    )
+    db = docker.this_class()
+    db.image = 'scratch'
+    assert db.init_backend(conf)
+    assert db.build_image('uproot')
+    assert db.image_exist()

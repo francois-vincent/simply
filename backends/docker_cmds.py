@@ -75,16 +75,21 @@ def image_delete_and_containers(image):
     return image_delete(image)
 
 
-def docker_build(image, tag=None, inline=False):
+def docker_pull(image):
+    return not utils.command('docker pull {}'.format(image))
+
+
+def docker_build(image, tag=None):
     """ Wrapper around docker build command
     see https://docs.docker.com/engine/reference/commandline/build/
     :param image: name of the image. Can be an absolute path to a Dockerfile or an URL
+           Can be an inline Dockerfile (contains \n).
     :param tag: target name of the image
-    :param inline: if True, image contains dockerfile data inline
     :return: True if successfull
     """
-    tag = tag or image
-    if inline:
+    if '\n' in image:
+        if not tag:
+            raise RuntimeError("Inline build requires a tag")
         cmd = 'docker build -t {} -'.format(tag)
         return not utils.command_input(cmd, image)
     else:
@@ -92,7 +97,7 @@ def docker_build(image, tag=None, inline=False):
             path = image
         else:
             path = os.path.join(ROOTDIR, 'images', image)
-        cmd = 'docker build -t {} {}'.format(tag, path)
+        cmd = 'docker build -t {} {}'.format(tag or image, path)
         print(utils.yellow(cmd))
         return not utils.Command(cmd, show='Build: ').returncode
 

@@ -2,30 +2,20 @@
 
 from .. import utils
 from .docker_cmds import (get_images, get_containers, container_stop, container_delete,
-                          image_delete, image_delete_and_containers, docker_build, docker_run,
-                          docker_exec)
-
-
-def get_instance(platform, conf):
-    return DockerBackend(platform, conf)
+                          image_delete, image_delete_and_containers, docker_build, docker_pull,
+                          docker_run, docker_exec)
 
 
 class DockerBackend(object):
-    type = 'docker'
 
-    def __init__(self, platform, conf):
-        self.platform = platform
-        self.user = platform.user
-        self.image = conf.image
-        self.name = self.type + '.' + self.image
-        self.make_container_name(conf)
-        self.parameters = getattr(conf, 'parameters', None)
-        # available methods: pull, path, input
-        self.methods = getattr(conf, 'methods', 'path')
-        self.path = getattr(conf, 'path', None)
+    def init_backend(self, conf):
+        self.container = conf.get('container') or self.image + '_' + utils.random_id()
+        self.parameters = conf.get('parameters')
+        self.image_spec = conf.get('image_spec', '')
+        return self
 
-    def make_container_name(self, conf):
-        self.container = getattr(conf, 'container', None) or 'simply_' + utils.random_id()
+    def setup_backend(self):
+        return self
 
     def setup(self, reset=None):
         """
@@ -59,14 +49,15 @@ class DockerBackend(object):
     def build_image(self, reset=None):
         self.reset(reset)
         if self.image not in self.get_real_images():
-            if self.method == 'pull':
+            if self.image_spec == '.pull':
                 print(utils.yellow("Pull image {}".format(self.image)))
+                docker_pull(self.image)
             else:
                 print(utils.yellow("Build image {}".format(self.image)))
-                if self.path:
-                    docker_build(self.image, self.image, path=self.path)
+                if '\n' in self.image_spec:
+                    docker_build(self.image_spec, self.image)
                 else:
-                    docker_build(self.image, self.image, inline=self.method == 'input')
+                    docker_build(self.image)
         return self
 
     def image_exist(self):
@@ -109,4 +100,4 @@ class DockerBackend(object):
         return docker_exec(cmd, self.container, self.user, **kwargs)
 
 
-get_class = DockerBackend
+this_class = DockerBackend

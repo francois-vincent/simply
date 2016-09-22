@@ -89,8 +89,13 @@ def test_atr_dict():
     cad = ConfAttrDict(a=1, b=2, c=3)
     assert len(cad) == 3
     assert cad.a == 1
+    # default behaviour is to raise on missing attribute
     with pytest.raises(AttributeError):
         cad.d
+    # but it can be overridden to return any default value
+    cad._raises = None
+    assert cad.d is None
+    cad._raises = ConfAttrDict.__raises__
 
     with cad(a=10, d=11):
         assert len(cad) == 4
@@ -101,7 +106,7 @@ def test_atr_dict():
     with pytest.raises(AttributeError):
         cad.d
 
-    with cad(a=ConfAttrDict.Remove_, d=ConfAttrDict.Remove_):
+    with cad(a=ConfAttrDict.__void__, d=ConfAttrDict.__void__):
         assert len(cad) == 2
         with pytest.raises(AttributeError):
             cad.a
