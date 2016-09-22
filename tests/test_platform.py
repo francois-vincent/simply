@@ -23,3 +23,37 @@ def test_platform_init():
     assert platform.parameters is None
 
 
+def test_platform_pull():
+    conf = ConfAttrDict(
+        backend='docker',
+        frontend='debian',
+        image='busybox',
+        image_spec='.pull',
+    )
+    platform = factory(conf)
+    assert platform.build_image('uproot')
+    assert platform.image_exist()
+
+
+def test_platform_build():
+    conf = ConfAttrDict(
+        backend='docker',
+        frontend='debian',
+        image='scratch',
+    )
+    platform = factory(conf)
+    assert platform.build_image('uproot')
+    assert platform.image_exist()
+
+
+def test_platform_run():
+    conf = ConfAttrDict(
+        backend='docker',
+        frontend='debian',
+        image='busybox',
+        image_spec='.pull',
+        parameters='-i'
+    )
+    platform = factory(conf)
+    assert platform.setup('all_containers')
+    assert platform.get_real_containers()

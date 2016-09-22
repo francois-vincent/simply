@@ -36,8 +36,9 @@ class DockerBackend(object):
         if not reset:
             return self
         if reset == 'uproot':
-            self.image_delete(uproot=True)
-            return self
+            return self.image_delete(uproot=True)
+        if reset == 'all_containers':
+            return self.delete_all_containers()
         if reset in ('stop', 'rm_container', 'rm_image'):
             self.container_stop()
         if reset in ('rm_container', 'rm_image'):
@@ -68,7 +69,7 @@ class DockerBackend(object):
         if self.container in self.get_real_containers():
             return self
         self.container_delete()
-        docker_run(self.image, self.container, self.container, self.parameters)
+        docker_run(self.image, self.container, self.parameters)
         return self
 
     def get_real_images(self):
@@ -94,6 +95,11 @@ class DockerBackend(object):
         for container in self.get_real_containers(True):
             print(utils.yellow("Delete container {}".format(container)))
             container_delete(container)
+        return self
+
+    def delete_all_containers(self):
+        container_stop(image=self.image)
+        container_delete(image=self.image)
         return self
 
     def execute(self, cmd, **kwargs):

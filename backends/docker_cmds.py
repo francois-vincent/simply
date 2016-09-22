@@ -105,7 +105,7 @@ def docker_build(image, tag=None):
 def docker_run(image, container=None, parameters=None, cmd=None):
     docker_cmd = 'docker run -d'
     if container:
-        docker_cmd += ' --name {0}  -h {0}'.format(container)
+        docker_cmd += ' --name {0}'.format(container)
     if parameters:
         docker_cmd += ' ' + parameters
     docker_cmd += ' ' + image

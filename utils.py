@@ -126,7 +126,7 @@ class ConfAttrDict(dict):
         self._pull()
 
 
-def random_id(len=16):
+def random_id(len=10):
     return ''.join(random.choice('0123456789abcdefghijklmnopqrstuvwxyz') for _ in xrange(len))
 
 
