@@ -37,13 +37,6 @@ class UnixFrontend(object):
         cmd = 'chmod{} {} {}'.format(' -R' if recursive else '', perms, path)
         return self.execute(cmd, status_only=True, raises=True)
 
-    def get_version(self, app):
-        output = self.execute('apt-cache policy {}'.format(app), user='root')
-        try:
-            return utils.extract_column(utils.filter_column(output, 0, startswith='Install'), 1, sep=':')[0]
-        except IndexError:
-            pass
-
     def wait_running_process(self, cmd, timeout=1):
         count, step = timeout, 0.2
         while count > 0:
