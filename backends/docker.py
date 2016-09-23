@@ -38,9 +38,8 @@ class DockerBackend(object):
             return self.image_delete(uproot=True)
         if reset == 'all_containers':
             return self.delete_all_containers()
-        if reset in ('stop', 'rm_container', 'rm_image'):
-            self.container_stop()
         if reset in ('rm_container', 'rm_image'):
+            self.container_stop()
             self.container_delete()
         if reset == 'rm_image':
             self.image_delete()
@@ -67,6 +66,7 @@ class DockerBackend(object):
         self.reset(reset)
         if self.container in self.get_real_containers():
             return self
+        # an existing (but stopped) container is deleted before being ran again
         self.container_delete()
         docker_run(self.image, self.container, self.parameters)
         return self
@@ -251,10 +251,6 @@ def docker_exec(cmd, container, user=None, raises=False, status_only=False, stdo
     return dock
 
 
-def path_exists(path, container):
-    return docker_exec('test -e {}'.format(path), container, status_only=True)
-
-
 def get_data(source, container):
     return docker_exec('cat {}'.format(source), container, raises=True)
 
@@ -278,7 +274,6 @@ def put_data(data, dest, container, append=False):
 
 
 def put_directory(source, dest, container):
-    # TODO refactor this so as to move it to frontend.linux
     docker_exec('mkdir -p {}'.format(dest), container, raises=True)
     with utils.cd(source):
         ret = utils.command('tar zc * | docker exec -i {} tar zx -C {}'.format(container, dest))

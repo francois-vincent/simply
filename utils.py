@@ -76,6 +76,9 @@ class ConfAttrDict(dict):
             raise AttributeError("{} attribute not found: {}".format(self.__class__.__name__, item))
         return self._raises
 
+    def copy(self):
+        return ConfAttrDict(self)
+
     def update(self, E=None, **F):
         dict.update(self, E, **F)
         return self

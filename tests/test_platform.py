@@ -57,3 +57,33 @@ def test_platform_run():
     platform = factory(conf)
     assert platform.setup('all_containers')
     assert platform.get_real_containers()
+
+
+def test_path_exists():
+    conf = ConfAttrDict(
+        backend='docker',
+        frontend='debian',
+        image='busybox',
+        image_spec='.pull',
+        parameters='-i'
+    )
+    platform = factory(conf)
+    assert platform.setup('all_containers')
+    assert platform.path_exists('/root')
+    assert not platform.path_exists('/toto')
+
+
+def test_platform_execute():
+    conf = ConfAttrDict(
+        backend='docker',
+        frontend='debian',
+        image='busybox',
+        image_spec='.pull',
+        parameters='-i'
+    )
+    platform = factory(conf)
+    assert platform.setup('all_containers')
+    exe = platform.execute('mkdir -p /root/test_dir', stdout_only=False)
+    assert exe.returncode == 0
+    assert exe.stdout == ''
+    assert platform.path_exists('/root/test_dir')
