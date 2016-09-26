@@ -5,16 +5,16 @@ from .linux import UnixFrontend
 
 
 def get_instance(platform, conf):
-    return DebianFrontend(platform, conf)
+    return this_class(platform, conf)
 
 
 class DebianFrontend(UnixFrontend):
 
-    def install_package(self, package):
+    def install_package(self, *package):
         if self.package_installer_init:
             self.execute('apt-get update && apt-get upgrade -y')
             self.package_installer_init = False
-        self.execute('apt-get install -y {}'.format(package))
+        self.execute('apt-get install -y {}'.format(' '.join(package)))
 
     def get_version(self, app):
         output = self.execute('apt-cache policy {}'.format(app), user='root')
