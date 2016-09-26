@@ -1,4 +1,5 @@
 FROM progrium/busybox
+# https://github.com/elyase/docker
 MAINTAINER Yaser Martinez Palenzuela
 RUN opkg-install bash bzip2
 ADD conda_install.sh /root/conda_install.sh

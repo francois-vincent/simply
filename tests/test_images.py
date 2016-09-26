@@ -45,3 +45,17 @@ def test_conda3():
     assert 'Python 3.' in platform.execute('python -V', stdout_only=False).stderr
     assert platform.execute('pip install pytest')
     assert 'version' in platform.execute('py.test --version', stdout_only=False).stderr
+
+
+def test_phusion():
+    conf = ConfAttrDict(
+        backend='docker',
+        frontend='debian',
+        image='phusion',
+        parameters='-i -v {}:/root/simply'.format(ROOTDIR)
+    )
+    platform = factory(conf)
+    assert platform.setup('all_containers')
+    assert 'Python 2.7' in platform.execute('python -V', stdout_only=False).stderr
+    assert platform.execute('pip install pytest')
+    assert 'version' in platform.execute('py.test --version', stdout_only=False).stderr
