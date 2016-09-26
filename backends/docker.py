@@ -228,16 +228,19 @@ def get_container_ip(container, raises=False):
     return docker_cmd.stdout.strip()
 
 
-def docker_exec(cmd, container, user=None, raises=False, status_only=False, stdout_only=True):
+def docker_exec(cmd, container, shell=False, user=None, raises=False, status_only=False, stdout_only=True):
     """ Executes a command on a running container via 'docker exec'
     :param cmd: the command to execute
     :param container: the target container
+    :param shell: if True, execute in a /bin/sh shell
     :param user: an optional user (defaults to root)
     :param raises: if True, will raise a RuntimeError exception if command fails (return code != 0)
     :param status_only: If True, will return True if command succeeds, False if it fails
     :param stdout_only: If True, will return stdout as a string (default=True)
     :return: a subprocess.Popen object, or a string if stdout_only=True, or a boolean if status_only=True
     """
+    if cmd:
+        cmd = '/bin/sh -c "{}"'.format(cmd)
     docker_cmd = 'docker exec -i {} {} {}'.format('-u {}'.format(user) if user else '', container, cmd)
     dock = utils.Command(docker_cmd)
     if raises and dock.returncode:
@@ -258,6 +261,10 @@ def get_data(source, container):
 def put_file(source, dest, container):
     docker_cmd = 'docker cp {} {}:{}'.format(source, container, dest)
     return not utils.command(docker_cmd, raises=True)
+
+
+def path_exists(path, container):
+    return docker_exec('test -e {}'.format(path), container, status_only=True)
 
 
 def put_data(data, dest, container, append=False):

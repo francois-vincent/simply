@@ -88,6 +88,16 @@ def test_put_file():
         docker.container_delete(image='busybox')
 
 
+def test_path_exists():
+    docker.container_delete(image='busybox')
+    try:
+        assert docker.docker_run('busybox', 'busybox', parameters='-i', cmd='/bin/cat')
+        assert docker.path_exists('/root', 'busybox')
+        assert not docker.path_exists('/toto', 'busybox')
+    finally:
+        docker.container_delete(image='busybox')
+
+
 def test_put_data():
     docker.container_delete(image='busybox')
     try:

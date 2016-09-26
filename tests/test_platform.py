@@ -59,20 +59,6 @@ def test_platform_run():
     assert platform.get_real_containers()
 
 
-def test_path_exists():
-    conf = ConfAttrDict(
-        backend='docker',
-        frontend='debian',
-        image='busybox',
-        image_spec='.pull',
-        parameters='-i'
-    )
-    platform = factory(conf)
-    assert platform.setup('all_containers')
-    assert platform.path_exists('/root')
-    assert not platform.path_exists('/toto')
-
-
 def test_platform_execute():
     conf = ConfAttrDict(
         backend='docker',

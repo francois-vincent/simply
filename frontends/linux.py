@@ -50,6 +50,3 @@ class UnixFrontend(object):
         if filter is None:
             return processes
         return [proc for proc in processes if filter in proc]
-
-    def path_exists(self, path):
-        return self.execute('test -e {}'.format(path), status_only=True)
