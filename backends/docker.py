@@ -25,7 +25,7 @@ class DockerBackend(object):
         self.run_container()
         return self
 
-    def reset(self, reset='rm_image'):
+    def reset(self, reset='rm_container'):
         """ Resets a platform
         :param reset: 'uproot': remove platform images and any dependant container
                       'rm_image': remove platform images and containers
@@ -39,7 +39,6 @@ class DockerBackend(object):
         if reset == 'all_containers':
             return self.delete_all_containers()
         if reset in ('rm_container', 'rm_image'):
-            self.container_stop()
             self.container_delete()
         if reset == 'rm_image':
             self.image_delete()
@@ -82,12 +81,6 @@ class DockerBackend(object):
         for image in self.get_real_images():
             print(utils.red("Delete image {}".format(image)))
             func(image)
-        return self
-
-    def container_stop(self):
-        for container in self.get_real_containers():
-            print(utils.yellow("Stop container {}".format(container)))
-            container_stop(container)
         return self
 
     def container_delete(self):

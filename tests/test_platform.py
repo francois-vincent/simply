@@ -69,8 +69,11 @@ def test_platform_run():
         image_spec='.pull',
     )
     platform = factory(conf)
-    assert platform.setup('all_containers')
-    assert platform.get_real_containers()
+    try:
+        assert platform.setup('all_containers')
+        assert platform.get_real_containers()
+    finally:
+        platform.reset()
 
 
 def test_platform_execute():
@@ -81,8 +84,11 @@ def test_platform_execute():
         image_spec='.pull',
     )
     platform = factory(conf)
-    assert platform.setup('all_containers')
-    exe = platform.execute('mkdir -p /root/test_dir', stdout_only=False)
-    assert exe.returncode == 0
-    assert exe.stdout == ''
-    assert platform.path_exists('/root/test_dir')
+    try:
+        assert platform.setup('all_containers')
+        exe = platform.execute('mkdir -p /root/test_dir', stdout_only=False)
+        assert exe.returncode == 0
+        assert exe.stdout == ''
+        assert platform.path_exists('/root/test_dir')
+    finally:
+        platform.reset()

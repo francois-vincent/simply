@@ -15,7 +15,7 @@ def platform_setup(platform):
     platform.setup('uproot' if pytest.config.getoption('--reset') else 'all_containers')
     yield platform
     if not pytest.config.getoption('--keep'):
-        platform.reset('rm_container')
+        platform.reset()
 
 
 def test_debian8():
