@@ -6,4 +6,5 @@ ADD conda_install.sh /root/conda_install.sh
 RUN ["bash", "/root/conda_install.sh"]
 ENV PATH /root/miniconda/bin:$PATH
 RUN conda install pip
+
 CMD ["/bin/cat"]
