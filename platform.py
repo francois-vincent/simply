@@ -24,15 +24,6 @@ class Platform(object):
         self.init_backend(conf)
         self.init_frontend(conf)
 
-    def __getattr__(self, item):
-        if hasattr(self.backend, item):
-            return getattr(self.backend, item)
-        elif hasattr(self.frontend, item):
-            return getattr(self.frontend, item)
-        raise AttributeError("{} {} can't find {} in backend {} nor frontend {}".
-                           format(self.__class__.__name__, self.name, item,
-                                  self.backend.name, self.frontend.type))
-
     def __enter__(self):
         self.setup_backend()
         self.setup_frontend()

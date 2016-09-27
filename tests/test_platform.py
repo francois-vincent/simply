@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+import pytest
+
 from ..platform import factory
 from ..utils import ConfAttrDict
 
@@ -21,6 +23,19 @@ def test_platform_init():
     assert platform.image_spec == ''
     assert platform.container
     assert platform.parameters is None
+
+
+def test_platform_getattr():
+    conf = ConfAttrDict(
+        backend='docker',
+        frontend='debian',
+        image='scratch',
+    )
+    platform = factory(conf)
+    assert platform.init_backend
+    assert platform.init_frontend
+    with pytest.raises(AttributeError):
+        platform.toto
 
 
 def test_platform_pull():
