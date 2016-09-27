@@ -56,7 +56,7 @@ def test_container_delete():
 def test_exec():
     docker.container_delete(image='busybox')
     try:
-        assert docker.docker_run('busybox', 'busybox', parameters='-i', cmd='/bin/cat')
+        assert docker.docker_run('busybox', 'busybox', cmd='/bin/cat')
         res = docker.docker_exec('ls', 'busybox').split('\n')
         assert len(res) > 9
         assert 'bin' in res
@@ -68,7 +68,7 @@ def test_exec():
 def test_get_data():
     docker.container_delete(image='busybox')
     try:
-        assert docker.docker_run('busybox', 'busybox', parameters='-i', cmd='/bin/cat')
+        assert docker.docker_run('busybox', 'busybox', cmd='/bin/cat')
         res = docker.get_data('/etc/passwd', 'busybox').split('\n')
         assert 'root:x:0:0:root:/root:/bin/sh' in res
     finally:
@@ -78,7 +78,7 @@ def test_get_data():
 def test_put_file():
     docker.container_delete(image='busybox')
     try:
-        assert docker.docker_run('busybox', 'busybox', parameters='-i', cmd='/bin/cat')
+        assert docker.docker_run('busybox', 'busybox', cmd='/bin/cat')
         file = os.path.join(ROOTDIR, '__init__.py')
         assert docker.put_file(file, '/', 'busybox')
         with open(file, 'r') as f:
@@ -91,7 +91,7 @@ def test_put_file():
 def test_path_exists():
     docker.container_delete(image='busybox')
     try:
-        assert docker.docker_run('busybox', 'busybox', parameters='-i', cmd='/bin/cat')
+        assert docker.docker_run('busybox', 'busybox', cmd='/bin/cat')
         assert docker.path_exists('/root', 'busybox')
         assert not docker.path_exists('/toto', 'busybox')
     finally:
@@ -101,7 +101,7 @@ def test_path_exists():
 def test_put_data():
     docker.container_delete(image='busybox')
     try:
-        assert docker.docker_run('busybox', 'busybox', parameters='-i', cmd='/bin/cat')
+        assert docker.docker_run('busybox', 'busybox', cmd='/bin/cat')
         file = os.path.join(ROOTDIR, '__init__.py')
         with open(file, 'r') as f:
             content = f.read()

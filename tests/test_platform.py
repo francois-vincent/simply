@@ -52,7 +52,6 @@ def test_platform_run():
         frontend='debian',
         image='busybox',
         image_spec='.pull',
-        parameters='-i'
     )
     platform = factory(conf)
     assert platform.setup('all_containers')
@@ -65,7 +64,6 @@ def test_platform_execute():
         frontend='debian',
         image='busybox',
         image_spec='.pull',
-        parameters='-i'
     )
     platform = factory(conf)
     assert platform.setup('all_containers')

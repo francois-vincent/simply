@@ -104,6 +104,9 @@ class DockerBackend(object):
     def execute(self, cmd, **kwargs):
         return docker_exec(cmd, self.container, self.user, **kwargs)
 
+    def path_exists(self, path):
+        return path_exists(path, self.container)
+
 this_class = DockerBackend
 
 
@@ -205,7 +208,7 @@ def docker_build(image, tag=None):
 
 
 def docker_run(image, container=None, parameters=None, cmd=None):
-    docker_cmd = 'docker run -d'
+    docker_cmd = 'docker run -di'
     if container:
         docker_cmd += ' --name {0}'.format(container)
     if parameters:
@@ -239,7 +242,7 @@ def docker_exec(cmd, container, shell=False, user=None, raises=False, status_onl
     :param stdout_only: If True, will return stdout as a string (default=True)
     :return: a subprocess.Popen object, or a string if stdout_only=True, or a boolean if status_only=True
     """
-    if cmd:
+    if shell:
         cmd = '/bin/sh -c "{}"'.format(cmd)
     docker_cmd = 'docker exec -i {} {} {}'.format('-u {}'.format(user) if user else '', container, cmd)
     dock = utils.Command(docker_cmd)
