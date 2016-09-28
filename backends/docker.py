@@ -58,6 +58,9 @@ class DockerBackend(object):
                     docker_build(self.image)
         return self
 
+    def get_real_images(self):
+        return get_images(self.image)
+
     def image_exist(self):
         return [self.image] == self.get_real_images()
 
@@ -70,11 +73,11 @@ class DockerBackend(object):
         docker_run(self.image, self.container, self.parameters)
         return self
 
-    def get_real_images(self):
-        return get_images(self.image)
-
     def get_real_containers(self, all=False):
         return get_containers(self.container, all=all)
+
+    def get_container_ip(self):
+        return get_container_ip(self.container)
 
     def image_delete(self, uproot=False):
         func = image_delete_and_containers if uproot else image_delete
@@ -217,14 +220,14 @@ def docker_commit(container, image):
     return not utils.command('docker commit {} {}'.format(container, image))
 
 
-def get_container_ip(container, raises=False):
+def get_container_ip(container, raises=True):
     docker_cmd = utils.Command("docker inspect --format '{{ .NetworkSettings.IPAddress }}' %s" % container)
     if raises and docker_cmd.stderr:
         raise RuntimeError("Container {} is not running".format(container))
     return docker_cmd.stdout.strip()
 
 
-def docker_exec(cmd, container, shell=False, user=None, raises=False, status_only=False, stdout_only=True):
+def docker_exec(cmd, container, user=None, shell=False, daemon=False, raises=False, status_only=False, stdout_only=True):
     """ Executes a command on a running container via 'docker exec'
     :param cmd: the command to execute
     :param container: the target container
@@ -237,7 +240,8 @@ def docker_exec(cmd, container, shell=False, user=None, raises=False, status_onl
     """
     if shell:
         cmd = '/bin/sh -c "{}"'.format(cmd)
-    docker_cmd = 'docker exec -i {} {} {}'.format('-u {}'.format(user) if user else '', container, cmd)
+    docker_cmd = 'docker exec -{}i {} {} {}'.\
+        format('d' if daemon else '', '-u {}'.format(user) if user else '', container, cmd)
     dock = utils.Command(docker_cmd)
     if raises and dock.returncode:
         raise RuntimeError(
