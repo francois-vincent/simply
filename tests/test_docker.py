@@ -155,6 +155,16 @@ def test_docker_build():
     db.image = 'scratch'
     assert db.init_backend(conf)
     assert db.build_image('uproot')
+
+
+def test_docker_build_path():
+    conf = ConfAttrDict(
+        image_spec=os.path.join(ROOTDIR, 'images')
+    )
+    db = docker.this_class()
+    db.image = 'scratch'
+    assert db.init_backend(conf)
+    assert db.build_image('uproot')
     assert db.image_exist()
 
 

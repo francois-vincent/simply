@@ -45,6 +45,13 @@ class DockerBackend(object):
         return self
 
     def build_image(self, reset=None):
+        """ self.image_spec can be:
+            - an empt string: the docker context is set to simply/images/{self.image}
+            - .pull: the image is pulled
+            - an inline Dockerfile (it contains at leat one '\n')
+            - an absolute path (starting with '/'): the docker context is set to {self.image_spec}/{self.image}
+            - an url (starting with 'http'): the docker context is set accordingly (TODO)
+        """
         self.reset(reset)
         if self.image not in self.get_real_images():
             if self.image_spec == '.pull':
@@ -54,6 +61,8 @@ class DockerBackend(object):
                 print(utils.yellow("Build image {}".format(self.image)))
                 if '\n' in self.image_spec:
                     docker_build(self.image_spec, self.image)
+                elif self.image_spec.startswith('/'):
+                    docker_build(os.path.join(self.image_spec, self.image), self.image)
                 else:
                     docker_build(self.image)
         return self
@@ -195,6 +204,8 @@ def docker_build(image, tag=None):
         return not utils.command_input(cmd, image)
     else:
         if os.path.isabs(image):
+            if not tag:
+                raise RuntimeError("Absolute path build requires a tag")
             path = image
         else:
             path = os.path.join(ROOTDIR, 'images', image)
