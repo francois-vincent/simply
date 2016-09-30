@@ -1,24 +1,10 @@
 # encoding: utf-8
 
-from contextlib import contextmanager
-
-import pytest
-
-from .. import ROOTDIR
-from ..platform import factory
-from ..utils import ConfAttrDict
+from simply.platform import platform_setup
+from simply.utils import ConfAttrDict
 
 std_python2_path = '/usr/local/lib/python2.7'
 std_python3_path = '/usr/local/lib/python3.'
-
-
-@contextmanager
-def platform_setup(conf):
-    platform = factory(conf)
-    platform.setup('uproot' if pytest.config.getoption('--reset') else 'all_containers')
-    yield platform
-    if not pytest.config.getoption('--keep-running'):
-        platform.reset()
 
 
 def test_debian8():
@@ -26,7 +12,6 @@ def test_debian8():
         backend='docker',
         frontend='debian',
         image='debian8',
-        parameters='-v {}:/root/simply'.format(ROOTDIR)
     )
     with platform_setup(conf) as platform:
         assert 'Python 2.7' in platform.execute('python -V', stdout_only=False).stderr
@@ -40,7 +25,6 @@ def test_conda2():
         backend='docker',
         frontend='busybox',
         image='conda2',
-        parameters='-v {}:/root/simply'.format(ROOTDIR)
     )
     with platform_setup(conf) as platform:
         assert 'Python 2.7' in platform.execute('python -V', stdout_only=False).stderr
@@ -55,7 +39,6 @@ def test_conda3():
         backend='docker',
         frontend='busybox',
         image='conda3',
-        parameters='-v {}:/root/simply'.format(ROOTDIR)
     )
     with platform_setup(conf) as platform:
         assert 'Python 3.4' in platform.execute('python -V', stdout_only=False).stderr
@@ -70,7 +53,6 @@ def test_phusion():
         backend='docker',
         frontend='debian',
         image='phusion',
-        parameters='-v {}:/root/simply'.format(ROOTDIR)
     )
     with platform_setup(conf) as platform:
         assert 'Python 2.7' in platform.execute('python -V', stdout_only=False).stderr

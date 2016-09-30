@@ -1,6 +1,10 @@
 # encoding: utf-8
 
-from .utils import mixin_factory
+from contextlib import contextmanager
+
+import pytest
+
+from utils import mixin_factory
 import backends
 import frontends
 
@@ -31,3 +35,12 @@ class Platform(object):
 
     def __exit__(self, *args):
         pass
+
+
+@contextmanager
+def platform_setup(conf):
+    platform = factory(conf)
+    platform.setup('uproot' if pytest.config.getoption('--reset') else 'all_containers')
+    yield platform
+    if not pytest.config.getoption('--keep-running'):
+        platform.reset()

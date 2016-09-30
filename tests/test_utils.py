@@ -3,8 +3,9 @@
 import os
 import pytest
 
-from .. import ROOTDIR
-from ..utils import cd, extract_column, filter_column, Command, command, command_input, ConfAttrDict, read_configuration
+from simply import ROOTDIR
+from simply.utils import (cd, extract_column, filter_column, Command, command, command_input,
+                          ConfAttrDict, read_configuration)
 
 
 def test_extract_column():

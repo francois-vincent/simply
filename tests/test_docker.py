@@ -2,9 +2,9 @@
 
 import os.path
 
-from .. import ROOTDIR
-from ..backends import docker, get_class
-from ..utils import ConfAttrDict
+from simply import ROOTDIR
+from simply.backends import docker, get_class
+from simply.utils import ConfAttrDict
 
 
 def test_version():

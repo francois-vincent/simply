@@ -2,8 +2,8 @@
 
 import pytest
 
-from ..platform import factory
-from ..utils import ConfAttrDict
+from simply.platform import factory
+from simply.utils import ConfAttrDict
 
 
 def test_platform_init():

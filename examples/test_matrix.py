@@ -6,13 +6,8 @@ import time
 import pytest
 import requests
 
-from ..platform import factory
-from ..utils import ConfAttrDict
-
-
-@pytest.mark.parametrize("image", ['conda2', 'conda3', 'debian8'])
-def test_matrix(image):
-    print('test on image <{}>'.format(image))
+from simply.platform import factory
+from simply.utils import ConfAttrDict
 
 
 @contextmanager
@@ -21,6 +16,11 @@ def platform_setup(conf):
     platform.setup('all_containers')
     yield platform
     platform.reset()
+
+
+@pytest.mark.parametrize("image", ['conda2', 'conda3', 'debian8'])
+def test_matrix(image):
+    print('test on image <{}>'.format(image))
 
 
 @pytest.mark.parametrize("interprter,http_server", [('python2', 'SimpleHTTPServer'), ('python3', 'http.server')])
