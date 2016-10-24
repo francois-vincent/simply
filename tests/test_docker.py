@@ -35,22 +35,21 @@ CMD ["/bin/cat"]
 
 
 def test_container_delete():
-    docker.image_delete_and_containers('scratch')
+    docker.container_delete(image='busybox')
     try:
         # performs a test of docker_run by the way, so I removed test_run()
-        assert docker.docker_build('scratch')
-        assert docker.docker_run('scratch', parameters='-v /bin:/bin')
-        assert len(docker.get_containers(image='scratch')) == 1
+        assert docker.docker_run('busybox', 'busybox', cmd='/bin/cat')
+        assert len(docker.get_containers(image='busybox')) == 1
         # delete by image name
-        assert docker.container_delete(image='scratch')
-        assert len(docker.get_containers(image='scratch')) == 0
-        assert docker.docker_run('scratch', parameters='-v /bin:/bin')
+        assert docker.container_delete(image='busybox')
+        assert len(docker.get_containers(image='busybox')) == 0
+        assert docker.docker_run('busybox', 'busybox', cmd='/bin/cat')
         # delete by container name
-        containers = docker.get_containers(image='scratch')
+        containers = docker.get_containers(image='busybox')
         assert docker.container_delete(*containers)
-        assert len(docker.get_containers(image='scratch')) == 0
+        assert len(docker.get_containers(image='busybox')) == 0
     finally:
-        docker.image_delete_and_containers('scratch')
+        docker.container_delete(image='busybox')
 
 
 def test_exec():

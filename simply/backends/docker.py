@@ -48,7 +48,7 @@ class DockerBackend(object):
         """ self.image_spec can be:
             - an empt string: the docker context is set to simply/images/{self.image}
             - .pull: the image is pulled
-            - an inline Dockerfile (it contains at leat one '\n')
+            - an inline Dockerfile (it contains at least one '\n')
             - an absolute path (starting with '/'): the docker context is set to {self.image_spec}/{self.image}
             - an url (starting with 'http'): the docker context is set accordingly (TODO)
         """
